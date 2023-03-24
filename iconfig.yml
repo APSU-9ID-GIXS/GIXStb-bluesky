@@ -3,8 +3,10 @@
 # configuration for the instrument package
 # simple key:value pairs
 
-# ADSIM_IOC_PREFIX: "ad:"
-# GP_IOC_PREFIX: "gp:"
+ADSIM_IOC_PREFIX: "9idDetectorSim:"
+ADPILATUS_IOC_PREFIX: "PILATUS_1MF:"
+ADLAMBDA_IOC_PREFIX: "8LAMBDA1:"
+GP_IOC_PREFIX: "8idChmLab:"
 
 DATABROKER_CATALOG: &databroker_catalog GIXStb
 
