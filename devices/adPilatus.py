@@ -3,7 +3,10 @@ EPICS area_detector Pilatus 1M
 """
 
 __all__ = """
-	pilatus
+    pilatus
+    config_pilatus
+    create_pilatus
+    load_pilatus
 """.split()
 
 import logging
@@ -14,29 +17,43 @@ logger.info(__file__)
 
 from .. import iconfig
 import pathlib
+from apstools.devices import AD_plugin_primed
+from apstools.devices import AD_prime_plugin2
+
 from apstools.devices import CamMixin_V34
 from ophyd.areadetector import PilatusDetectorCam
+from ophyd.areadetector import SingleTrigger
 from ophyd.areadetector.filestore_mixins import FileStoreHDF5IterativeWrite
 from ophyd.areadetector.plugins import HDF5Plugin_V34 as HDF5Plugin
+from ophyd.areadetector.plugins import ROIPlugin_V34, StatsPlugin_V34
+#from ophyd.areadetector.plugins import HDF5Plugin
 from apstools.devices import SingleTrigger_V34
 from ophyd import ADComponent
+#from ophyd import Component as Cpt
+
 from ophyd.areadetector import DetectorBase
+from ophyd.areadetector.plugins import ImagePlugin_V34
+from ophyd.areadetector.plugins import ImagePlugin
+from ophyd.areadetector.plugins import PvaPlugin_V34
 
 IOC = iconfig["ADPILATUS_IOC_PREFIX"]
+IMAGE_DIR = iconfig["ADPILATUS_IMAGE_DIR"]
+# Pilatus IOC sees a different local file system when it saves (HDF or other
+# kinds of) files
+AD_IOC_MOUNT_PATH = pathlib.Path(iconfig["PILATUS_MOUNT_PATH"])
+# MUST end with a `/`, pathlib will NOT provide it
+WRITE_PATH_TEMPLATE = f"{AD_IOC_MOUNT_PATH / IMAGE_DIR}/"
 
 #TODO sort directories to be used by Chmlab
-IMAGE_DIR = iconfig["AD_IMAGE_DIR"]
-AD_IOC_MOUNT_PATH = pathlib.Path(iconfig["AD_MOUNT_PATH"])
 BLUESKY_MOUNT_PATH = pathlib.Path(iconfig["BLUESKY_MOUNT_PATH"])
 
 # MUST end with a `/`, pathlib will NOT provide it
-WRITE_PATH_TEMPLATE = f"{AD_IOC_MOUNT_PATH / IMAGE_DIR}/"
 READ_PATH_TEMPLATE = f"{BLUESKY_MOUNT_PATH / IMAGE_DIR}/"
 
 
 class PilatusDetectorCam_V34(CamMixin_V34, PilatusDetectorCam):
     """Update PilatusDetectorCam to ADCore 3.4+."""
-
+    
 
 class MyHDF5Plugin(FileStoreHDF5IterativeWrite, HDF5Plugin):
     """
@@ -53,6 +70,51 @@ class MyHDF5Plugin(FileStoreHDF5IterativeWrite, HDF5Plugin):
 
 
 class PilatusDetector_V34(SingleTrigger_V34, DetectorBase):
+#class PilatusDetectorHDF(SingleTrigger, DetectorBase):
+    """
+    ADSimDetector
+
+    SingleTrigger:
+
+    * stop any current acquisition
+    * sets image_mode to 'Multiple'
+    """
+    _default_configuration_attrs = ('roi1', 'roi2', 'roi3', 'roi4')
+    _default_read_attrs = ('cam', 'stats1', 'stats2', 'stats3', 'stats4')
+    
+    cam = ADComponent(PilatusDetectorCam_V34, "cam1:")
+#    cam = ADComponent(PilatusDetectorCam, "cam1:")
+    hdf1 = ADComponent(
+        MyHDF5Plugin,
+        "HDF1:",
+        write_path_template=WRITE_PATH_TEMPLATE,
+        read_path_template=READ_PATH_TEMPLATE,
+    )
+    image = ADComponent(ImagePlugin_V34, "image1:")
+
+#    stats1 = Cpt(StatsPlugin_V34, 'Stats1:')
+#    stats2 = Cpt(StatsPlugin_V34, 'Stats2:')
+#    stats3 = Cpt(StatsPlugin_V34, 'Stats3:')
+#    stats4 = Cpt(StatsPlugin_V34, 'Stats4:')
+#   stats5 = Cpt(StatsPlugin, 'Stats5:')
+    stats1 = ADComponent(StatsPlugin_V34, 'Stats1:')
+    stats2 = ADComponent(StatsPlugin_V34, 'Stats2:')
+    stats3 = ADComponent(StatsPlugin_V34, 'Stats3:')
+    stats4 = ADComponent(StatsPlugin_V34, 'Stats4:')
+    stats5 = ADComponent(StatsPlugin_V34, 'Stats5:')
+
+#    roi1 = Cpt(ROIPlugin_V34, 'ROI1:')
+#    roi2 = Cpt(ROIPlugin_V34, 'ROI2:')
+#    roi3 = Cpt(ROIPlugin_V34, 'ROI3:')
+#    roi4 = Cpt(ROIPlugin_V34, 'ROI4:')
+    roi1 = ADComponent(ROIPlugin_V34, 'ROI1:')
+    roi2 = ADComponent(ROIPlugin_V34, 'ROI2:')
+    roi3 = ADComponent(ROIPlugin_V34, 'ROI3:')
+    roi4 = ADComponent(ROIPlugin_V34, 'ROI4:')
+
+    pva = ADComponent(PvaPlugin_V34, "Pva1:")
+
+class PilatusDetector(SingleTrigger, DetectorBase):
     """
     ADSimDetector
 
@@ -62,38 +124,76 @@ class PilatusDetector_V34(SingleTrigger_V34, DetectorBase):
     * sets image_mode to 'Multiple'
     """
 
-    cam = ADComponent(PilatusDetectorCam_V34, "cam1:")
-    hdf1 = ADComponent(
-        MyHDF5Plugin,
-        "HDF1:",
-        write_path_template=WRITE_PATH_TEMPLATE,
-        read_path_template=READ_PATH_TEMPLATE,
-    )
+#    cam = ADComponent(PilatusDetectorCam_V34, "cam1:")
+    cam = ADComponent(PilatusDetectorCam, "cam1:")
+
+    # What file type should I put here? TIFF?
+    
+   
+#    image = ADComponent(ImagePlugin_V34, "image1:")
     image = ADComponent(ImagePlugin, "image1:")
 
 
-try:
-	pilatus = PilatusDetector_V34(IOC, name="pilatus1M")
-	pilatus.wait_for_connection(timeout=15)
-except TimeoutError:
-    logger.warning("Did not connect to Pilatus 1M area detector IOC '%s'", IOC)
-    pilatus = None
-else:
-    pilatus.missing_plugins()  # confirm all plugins are defined
-	pilatus.read_attrs.append("hdf1")  # include `hdf1` plugin with 'pilatus.read()'
-	
-	# override default settings from ophyd
-	# Plugins will tell the camera driver when acquisition is finished.
-	# RunEngine will wait until `pilatus:cam1:AcquireBusy_RBV` PV goes to zero.
-	pilatus.cam.stage_sigs["wait_for_plugins"] = "Yes"
-	pilatus.hdf1.stage_sigs["blocking_callbacks"] = "No"
-	pilatus.image.stage_sigs["blocking_callbacks"] = "No"
+   
+def create_pilatus(IOC, name = 'Pilatus1M', labels=("area_detector",), timeout=15, hdf = False):
+    detector = PilatusDetector_V34(IOC, name=name, labels=labels)
+#    if hdf:
+#        detector = PilatusDetectorHDF(IOC, name=name, labels=labels)
+#    else:
+#        detector = PilatusDetector(IOC, name=name, labels=labels)
+    
+    detector.wait_for_connection(timeout=timeout)
 
-	# override default settings from ophyd
-	# Plugins will tell the camera driver when acquisition is finished.
-	# RunEngine will wait until `pilatus:cam1:AcquireBusy_RBV` PV goes to zero.
-	pilatus.cam.stage_sigs["wait_for_plugins"] = "Yes"
-	pilatus.hdf1.stage_sigs["blocking_callbacks"] = "No"
-	pilatus.image.stage_sigs["blocking_callbacks"] = "No"
+    return detector
+
+
+def config_pilatus(detector, hdf = False):
+    detector.missing_plugins()  # confirm all plugins are defined
+    if hdf:
+        detector.read_attrs.append("hdf1")  # include `hdf1` plugin with 'detector.read()'
+    
+    # override default settings from ophyd
+    # Plugins will tell the camera driver when acquisition is finished.
+    # RunEngine will wait until `pilatus:cam1:AcquireBusy_RBV` PV goes to zero.
+    detector.cam.stage_sigs["wait_for_plugins"] = "Yes"
+    if hdf:
+        detector.hdf1.stage_sigs["blocking_callbacks"] = "No"
+    detector.image.stage_sigs["blocking_callbacks"] = "No"
+
+    if hdf and not iconfig.get("ALLOW_AREA_DETECTOR_WARMUP"):
+        logger.info("HDF plugin warmup for area detector IOC '%s'", IOC)
+        # Even with `lazy_open=1`, ophyd checks if the area
+        # detector HDF5 plugin has been primed.  We might
+        # need to prime it.  Here's ophyd's test:
+        # if np.array(adsimdet.hdf1.array_size.get()).sum() == 0:
+        #     logger.info(f"Priming {adsimdet.hdf1.name} ...")
+        #     adsimdet.hdf1.warmup()
+        #     logger.info(f"Enabling {adsimdet.image.name} plugin ...")
+        #     adsimdet.image.enable.put("Enable")
+        # This test is not sufficient.
+        # WORKAROUND (involving a few more tests)
+        if not AD_plugin_primed(detector.hdf1):
+            logger.info("Priming HDF plugin for area detector IOC '%s'", IOC)
+            AD_prime_plugin2(detector.hdf1)
+
+
+    return detector
+        
+    
+def load_pilatus(IOC, name = 'Pilatus1M', labels=("area_detector",), timeout=15, hdf = False):
+    try: 
+        pilatus = create_pilatus(IOC, name=name, labels=labels, timeout=timeout, hdf = hdf)
+    except TimeoutError:
+        logger.warning("Did not connect to Pilatus 1M area detector IOC '%s'", IOC)
+        pilatus = None
+    else:
+        logger.info("Configuring plugins for area detector IOC '%s'", IOC)
+        pilatus = config_pilatus(pilatus, hdf = hdf)
+        
+    return pilatus
+
+pilatus = load_pilatus(IOC, hdf = True)
+
+
 
 

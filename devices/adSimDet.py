@@ -1,5 +1,7 @@
 """
 EPICS area_detector ADSimDetector
+
+following https://bcda-aps.github.io/apstools/latest/examples/de_0_adsim_hdf5_basic.html#detector
 """
 
 __all__ = """
@@ -34,15 +36,14 @@ import pathlib
 
 
 IOC = iconfig["ADSIM_IOC_PREFIX"]
+IMAGE_DIR = iconfig["ADSIM_IMAGE_DIR"]
+AD_IOC_MOUNT_PATH = pathlib.Path(iconfig["AD_MOUNT_PATH"])
+WRITE_PATH_TEMPLATE = f"{AD_IOC_MOUNT_PATH / IMAGE_DIR}/"
 
 #TODO sort directories to be used by Chmlab
-
-IMAGE_DIR = iconfig["AD_IMAGE_DIR"]
-AD_IOC_MOUNT_PATH = pathlib.Path(iconfig["AD_MOUNT_PATH"])
 BLUESKY_MOUNT_PATH = pathlib.Path(iconfig["BLUESKY_MOUNT_PATH"])
 
 # MUST end with a `/`, pathlib will NOT provide it
-WRITE_PATH_TEMPLATE = f"{AD_IOC_MOUNT_PATH / IMAGE_DIR}/"
 READ_PATH_TEMPLATE = f"{BLUESKY_MOUNT_PATH / IMAGE_DIR}/"
 
 
@@ -74,7 +75,7 @@ class SimDetector_V34(SingleTrigger_V34, DetectorBase):
     * sets image_mode to 'Multiple'
     """
 
-    cam = ADComponent(SimDetectorCam_V34, "cam1:")
+    cam = ADComponent(SimDetectorCam_V34, "SIM1:cam1:")
     hdf1 = ADComponent(
         MyHDF5Plugin,
         "HDF1:",
@@ -148,6 +149,7 @@ except TimeoutError:
     logger.warning("Did not connect to area detector IOC '%s'", IOC)
     adsimdet = None
 else:
+    logger.info("Configuring plugins for area detector IOC '%s'", IOC)
     adsimdet.read_attrs.append("hdf1")
 
     adsimdet.hdf1.create_directory.put(-5)
@@ -157,7 +159,15 @@ else:
     adsimdet.cam.stage_sigs["wait_for_plugins"] = "Yes"
     adsimdet.image.stage_sigs["blocking_callbacks"] = "No"
 
-    if iconfig.get("ALLOW_AREA_DETECTOR_WARMUP", False):
+    adsimdet.cam.stage_sigs["acquire_period"] = 0.015
+    adsimdet.cam.stage_sigs["acquire_time"] = 0.01
+    adsimdet.cam.stage_sigs["num_images"] = 5
+    adsimdet.hdf1.stage_sigs["num_capture"] = 0  # capture ALL frames received
+    adsimdet.hdf1.stage_sigs["compression"] = "zlib"  # LZ4
+    # adsimdet.hdf1.stage_sigs["queue_size"] = 20
+
+    if not iconfig.get("ALLOW_AREA_DETECTOR_WARMUP"):
+        logger.info("HDF plugin warmup for area detector IOC '%s'", IOC)
         # Even with `lazy_open=1`, ophyd checks if the area
         # detector HDF5 plugin has been primed.  We might
         # need to prime it.  Here's ophyd's test:
@@ -169,7 +179,9 @@ else:
         # This test is not sufficient.
         # WORKAROUND (involving a few more tests)
         if not AD_plugin_primed(adsimdet.hdf1):
+            logger.info("Priming HDF plugin for area detector IOC '%s'", IOC)
             AD_prime_plugin2(adsimdet.hdf1)
+ 
 
     # peak new peak parameters
     change_ad_simulated_image_parameters()

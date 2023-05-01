@@ -12,13 +12,16 @@ local, custom Device definitions
 # from .aps_source import *
 # from .aps_undulator import *
 
-from .adSimDet import *
+#from .motors import *
+
+#from .adSimDet import *
 from .adPilatus import *
-from .adLambda import *
+#from .adLambda import *
+
 # from .calculation_records import *
 # from .ioc_stats import *
 # from .kohzu_monochromator import *
-from .motors import *
+
 # from .noisy_detector import *
 # from .scaler import *
 # from .shutter_simulator import *

@@ -8,26 +8,32 @@ ADPILATUS_IOC_PREFIX: "PILATUS_1MF:"
 ADLAMBDA_IOC_PREFIX: "8LAMBDA1:"
 GP_IOC_PREFIX: "8idChmLab:"
 
-DATABROKER_CATALOG: &databroker_catalog GIXStb
+DATABROKER_CATALOG: &databroker_catalog CSSItb
 
 # default RunEngine metadata
 RUNENGINE_METADATA:
-  beamline_id: GIXStb
-  instrument_name: APS GIXS Testbed
+  beamline_id: CSSItb
+  instrument_name: APS CSSI Testbed
   proposal_id: commissioning
   databroker_catalog: *databroker_catalog
 
 # paths
+ADSIM_IMAGE_DIR: "simdet"
+ADPILATUS_IMAGE_DIR: "pilatus"
+ADLAMBDA_IMAGE_DIR: "lambda"
 # AD_IMAGE_DIR: "adsimdet/%Y/%m/%d"
-# AD_MOUNT_PATH: /tmp
-# BLUESKY_MOUNT_PATH: /tmp/docker_ioc/iocad/tmp
+# If your detector IOC sees the same file system as the bluesky workstation, 
+# then AD_MOUNT_PATH and BLUESKY_MOUNT_PATH should be the same.
+AD_MOUNT_PATH: /net/s8iddata/export/8-id-g/2023-1/bsTests
+PILATUS_MOUNT_PATH: /net/s8iddata/8-id-g/2023-1/bsTests
+BLUESKY_MOUNT_PATH: /net/s8iddata/export/8-id-g/2023-1/bsTests
 
 # permissions
-ALLOW_AREA_DETECTOR_WARMUP: false
-ENABLE_AREA_DETECTOR_IMAGE_PLUGIN: true
-ENABLE_CALCS: true
-USE_PROGRESS_BAR: false
-WRITE_SPEC_DATA_FILES: true
+ALLOW_AREA_DETECTOR_WARMUP: False
+ENABLE_AREA_DETECTOR_IMAGE_PLUGIN: True
+ENABLE_CALCS: True
+USE_PROGRESS_BAR: False
+WRITE_SPEC_DATA_FILES: False
 
 # override default control layer for ophyd
 # if undefined, defaults to PyEpics

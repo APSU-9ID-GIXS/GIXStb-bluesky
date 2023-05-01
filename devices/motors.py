@@ -43,5 +43,5 @@ m14 = MyEpicsMotor(f"{IOC}m14", name="B_StopY", labels=("motor",))
 m15 = MyEpicsMotor(f"{IOC}m15", name="B_StopZ", labels=("motor",))
 m16 = MyEpicsMotor(f"{IOC}m16", name="m16", labels=("motor",))
 
-m1.wait_for_connection()
-m1.steps_per_revolution.put(2000)
+# m1.wait_for_connection()
+# m1.steps_per_revolution.put(2000)
