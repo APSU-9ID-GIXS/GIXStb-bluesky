@@ -12,9 +12,9 @@ local, custom Device definitions
 # from .aps_source import *
 # from .aps_undulator import *
 
-#from .motors import *
+from .motors import *
 
-#from .adSimDet import *
+from .adSimDet import *
 from .adPilatus import *
 #from .adLambda import *
 

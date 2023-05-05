@@ -66,7 +66,7 @@ RE.md = PersistentDict(md_path)
 #     RE.md.update(old_md)
 
 # Connect with our mongodb database
-catalog_name = iconfig.get("DATABROKER_CATALOG", "GIXStb")
+catalog_name = iconfig.get("DATABROKER_CATALOG", "CSSItb")
 # databroker v2 api
 try:
     cat = databroker.catalog[catalog_name]
